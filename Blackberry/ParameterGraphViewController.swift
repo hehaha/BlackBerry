@@ -45,7 +45,7 @@ class ParameterGraphViewController: UIViewController {
             return
         }
         let user = User.shareInstance
-        let dateString = String(format: "%d-%2d-%2d", __dateComponent.year, __dateComponent.month, __dateComponent.day)
+        let dateString = String(format: "%d-%02d-%02d", __dateComponent.year, __dateComponent.month, __dateComponent.day)
         Alamofire.request(.GET, "http:/\(user.ip):\(user.port)/DataCenter2/serverdatartime.action", parameters: ["cabId": cabId, "num": __parameter.value(), "date": dateString]).responseJSON {
             [weak self] response in
             guard let result = response.result.value as? [String: AnyObject] else {

@@ -98,7 +98,7 @@ class CabinetDetailViewController: UIViewController, UITableViewDelegate, UITabl
         let date = NSDate()
         let calendar = NSCalendar.currentCalendar()
         let dateComponent = calendar.components([.Year, .Month, .Day], fromDate: date)
-        let dateString = String(format: "%d-%2d-%2d", dateComponent.year, dateComponent.month, dateComponent.day)
+        let dateString = String(format: "%d-%02d-%02d", dateComponent.year, dateComponent.month, dateComponent.day)
         Alamofire.request(.GET, "http://\(user.ip):\(user.port)/DataCenter2/serverdata.action", parameters: ["cabId": cabId, "date": dateString]).responseJSON { [weak self] response in
             guard let result = response.result.value as? [String: AnyObject] else {
                 return

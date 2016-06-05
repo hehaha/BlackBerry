@@ -88,7 +88,10 @@ class LoginViewController: UIViewController {
     }
     
     @IBAction func cancelButtonDidClicked(sender: UIButton) {
-        
+        iPTextField.text = ""
+        portTextField.text = ""
+        userTextField.text = ""
+        passwordTextField.text = ""
     }
     
     override func didReceiveMemoryWarning() {
