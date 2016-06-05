@@ -8,8 +8,9 @@
 
 import UIKit
 import ObjectMapper
+import Alamofire
 
-class CabinetDetailViewController: UIViewController, UITableViewDelegate, UITableViewDataSource {
+class CabinetDetailViewController: UIViewController, UITableViewDelegate, UITableViewDataSource, UIAlertViewDelegate {
     private var __cabinet: CabinetModel
     private let __cellIdentifier = "Cell"
     private let __tempCellIdentifier = "TempCell"
@@ -25,7 +26,7 @@ class CabinetDetailViewController: UIViewController, UITableViewDelegate, UITabl
     override func viewDidLoad() {
         super.viewDidLoad()
         automaticallyAdjustsScrollViewInsets = false
-        navigationItem.title = "机房-机柜\(__cabinet.row)-\(__cabinet.col)"
+        navigationItem.title = __cabinet.cabName
         
         __tableView.delegate = self
         __tableView.dataSource = self
@@ -46,7 +47,7 @@ class CabinetDetailViewController: UIViewController, UITableViewDelegate, UITabl
     }
     
     func tableView(tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return __cabinet.temperatureArray.count + 2
+        return __cabinet.temperatureArray.count == 0 ? 0 : __cabinet.temperatureArray.count + 1
     }
     
     func tableView(tableView: UITableView, cellForRowAtIndexPath indexPath: NSIndexPath) -> UITableViewCell {
@@ -71,22 +72,9 @@ class CabinetDetailViewController: UIViewController, UITableViewDelegate, UITabl
                 tempCell.bottomBorderView.hidden = true
             }
         }
-        else if indexPath.row == __cabinet.temperatureArray.count {
-            cell = tableView.dequeueReusableCellWithIdentifier(__powerCellIdentifier)!
-            let powerCell = cell as! CabinetPowerCell
-            powerCell.textLabel?.text = "机柜总功率"
-            powerCell.accessoryType = .DisclosureIndicator
-            if let totalPower = __cabinet.totalPower {
-                powerCell.tailLable.text = "\(totalPower)kw"
-            }
-            else {
-                powerCell.tailLable.text = "0kw"
-            }
-            
-        }
         else {
             cell = tableView.dequeueReusableCellWithIdentifier(__cellIdentifier)!
-            cell.textLabel?.text = "环境参数列图"
+            cell.textLabel?.text = "环境参数列表"
             cell.accessoryType = .DisclosureIndicator
         }
         return cell
@@ -95,7 +83,7 @@ class CabinetDetailViewController: UIViewController, UITableViewDelegate, UITabl
     func tableView(tableView: UITableView, didSelectRowAtIndexPath indexPath: NSIndexPath) {
         let cell = tableView.cellForRowAtIndexPath(indexPath)
         cell?.setSelected(false, animated: true)
-        if indexPath.row == __cabinet.temperatureArray.count + 1 {
+        if indexPath.row == __cabinet.temperatureArray.count {
             let newVC = UIStoryboard(name: "Main", bundle: NSBundle.mainBundle()).instantiateViewControllerWithIdentifier(String(ParameterSelectViewController)) as! ParameterSelectViewController
             newVC.cabinet = __cabinet
             self.navigationController?.pushViewController(newVC, animated: true)
@@ -103,15 +91,46 @@ class CabinetDetailViewController: UIViewController, UITableViewDelegate, UITabl
     }
     
     private func p_fetchData() {
-        var temperatureArray: [(String, Int)] = []
-        for i in 1...3 {
-            temperatureArray.append(("前面板温度\(i)", i * 5))
+        guard let cabId = __cabinet.cabId else {
+            return
         }
-        for i in 1...3 {
-            temperatureArray.append(("后面板温度\(i)", i * 5))
+        let user = User.shareInstance
+        let date = NSDate()
+        let calendar = NSCalendar.currentCalendar()
+        let dateComponent = calendar.components([.Year, .Month, .Day], fromDate: date)
+        let dateString = String(format: "%d-%2d-%2d", dateComponent.year, dateComponent.month, dateComponent.day)
+        Alamofire.request(.GET, "http://\(user.ip):\(user.port)/DataCenter2/serverdata.action", parameters: ["cabId": cabId, "date": dateString]).responseJSON { [weak self] response in
+            guard let result = response.result.value as? [String: AnyObject] else {
+                return
+            }
+            print(response.result.value)
+            var temperatureArray: [(String, Float)] = []
+            if let frontTempList = result["front_panel_temp"] as? [Float] {
+                for (index, value) in frontTempList.enumerate() {
+                    temperatureArray.append(("前面板温度\(index + 1)", value))
+                }
+            }
+            if let backTempList = result["back_panel_temp"] as? [Float] {
+                for (index, value) in backTempList.enumerate() {
+                    temperatureArray.append(("后面板温度\(index + 1)", value))
+                }
+            }
+            if let powerList = result["cabinet_power"] as? [Float] {
+                temperatureArray.append(("机柜总功率", powerList[0]))
+                temperatureArray.append(("机柜功率1", powerList[1]))
+                temperatureArray.append(("机柜功率2", powerList[2]))
+            }
+            if temperatureArray.count == 0, let message = result["msg"] as? String {
+                let alertView = UIAlertView(title: "错误", message: message, delegate: self, cancelButtonTitle: "确定")
+                alertView.show()
+                return
+            }
+            self?.__cabinet.temperatureArray = temperatureArray
+            self?.__tableView.reloadData()
         }
-        let total: Double = 0.08
-        __cabinet = CabinetModel(cabId: __cabinet.cabId ?? 0, row: __cabinet.row, col: __cabinet.col, tempArray: temperatureArray, totalPower: total)
-        
+    }
+    
+    func alertView(alertView: UIAlertView, clickedButtonAtIndex buttonIndex: Int) {
+        navigationController?.popViewControllerAnimated(true)
     }
 }

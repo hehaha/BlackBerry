@@ -7,6 +7,7 @@
 //
 
 import UIKit
+import Alamofire
 
 class ParameterGraphViewController: UIViewController {
     
@@ -40,12 +41,24 @@ class ParameterGraphViewController: UIViewController {
     }
 
     private func p_fetchData() {
-        let datas: [CGFloat] = [12, 16, 28, 19, 14, 32]
-        let times: [String] = ["20:00", "20:10", "20: 20", "20:30", "20:40", "20:50", "21:00"]
-        var points: [(CGFloat, String)] = []
-        for (index, data) in datas.enumerate() {
-            points.append((data, times[index]))
+        guard let cabId = __cabinet.cabId else {
+            return
         }
-        __parametetGraphView.points = points
+        let user = User.shareInstance
+        let dateString = String(format: "%d-%2d-%2d", __dateComponent.year, __dateComponent.month, __dateComponent.day)
+        Alamofire.request(.GET, "http:/\(user.ip):\(user.port)/DataCenter2/serverdatartime.action", parameters: ["cabId": cabId, "num": __parameter.value(), "date": dateString]).responseJSON {
+            [weak self] response in
+            guard let result = response.result.value as? [String: AnyObject] else {
+                return
+            }
+            guard let times = result["time"] as? [String], datas = result["verticaldata"] as? [CGFloat] else {
+                return
+            }
+            var points: [(CGFloat, String)] = []
+            for (index, data) in datas.enumerate() {
+                points.append((data, times[index]))
+            }
+            self?.__parametetGraphView.points = points
+        }
     }
 }

@@ -124,8 +124,15 @@ class ParameterGraphView: UIView {
                 guard let position = self.__graphView.poiontPositionWithIndex(i) else {
                     continue
                 }
+                if !point.1.hasSuffix("30") && !point.1.hasSuffix("00") {
+                    xLabel.hidden = true
+                    yLabel.hidden = true
+                    continue
+                }
                 xLabel.text = point.1
+                xLabel.hidden = false
                 yLabel.text = "\(point.0)"
+                yLabel.hidden = false
                 xLabel.snp_updateConstraints(closure: { (make) in
                     make.centerX.equalTo(self.__xLabelContainerView.snp_left).offset(position.x)
                 })

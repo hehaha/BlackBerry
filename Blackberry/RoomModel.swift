@@ -22,7 +22,7 @@ struct RoomModel: Mappable {
     }
     
     mutating func mapping(map: Map) {
-        roomId <- map["id"]
-        name <- map["name"]
+        roomId <- map["centerNo"]
+        name <- map["text"]
     }
 }

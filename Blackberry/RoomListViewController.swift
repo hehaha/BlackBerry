@@ -25,6 +25,7 @@ class RoomListViewController: UIViewController, UITableViewDataSource, UITableVi
     override func viewDidLoad() {
         super.viewDidLoad()
         navigationItem.title = "机房列表"
+        navigationItem.hidesBackButton = true
         automaticallyAdjustsScrollViewInsets = false
         // Do any additional setup after loading the view, typically from a nib.
         p_fetchData()
@@ -59,11 +60,14 @@ class RoomListViewController: UIViewController, UITableViewDataSource, UITableVi
     
     
     private func p_fetchData() {
-        var result: [RoomModel] = []
-        for i in 1...5 {
-            result.append(RoomModel(roomId:i, name:"机房\(i)")!)
+        let user = User.shareInstance
+        Alamofire.request(.GET, "http://\(user.ip):\(user.port)/DataCenter2/showcabroom.action", parameters: ["userid": user.userID]).responseJSON { [weak self] response in
+            guard let rooms = Mapper<RoomModel>().mapArray(response.result.value) else {
+                self?.__roomModels = []
+                return
+            }
+            self?.__roomModels = rooms
         }
-        __roomModels = result
     }
 
 }

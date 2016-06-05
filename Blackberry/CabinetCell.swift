@@ -37,8 +37,8 @@ class CabinetCell: UITableViewCell {
     
     var cabinet: CabinetModel? {
         didSet {
-            if let row = cabinet?.row, col = cabinet?.col {
-                textLabel?.text = "机柜\(row)-\(col)"
+            if let row = cabinet?.cabName {
+                textLabel?.text = row
             }
             else {
                 textLabel?.text = "未匹配的机柜数据"

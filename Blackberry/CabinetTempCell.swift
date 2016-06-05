@@ -36,7 +36,7 @@ class CabinetTempCell: UITableViewCell {
         return view
     }()
     
-    var tempInfo: (String, Int)? {
+    var tempInfo: (String, Float)? {
         didSet {
             textLabel?.text = tempInfo?.0
             if let tempValue = tempInfo?.1 {

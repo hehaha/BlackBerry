@@ -20,4 +20,31 @@ enum CabinetParameter: String {
     case blowerTwo = "风扇二"
     case blowerThree = "风扇三"
     case blowerFour = "风扇四"
+    
+    func value() -> Int {
+        switch self {
+        case .averagePower:
+            return 0
+        case .averageElectricity:
+            return 1
+        case .serviceTemperature:
+            return 2
+        case .electricityOne:
+            return 3
+        case .electricityTwo:
+            return 4
+        case .voltageOne:
+            return 5
+        case .voltageTwo:
+            return 6
+        case .blowerOne:
+            return 7
+        case .blowerTwo:
+            return 8
+        case .blowerThree:
+            return 9
+        case .blowerFour:
+            return 10
+        }
+    }
 }

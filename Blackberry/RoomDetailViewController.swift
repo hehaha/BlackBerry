@@ -7,7 +7,8 @@
 //
 
 import UIKit
-import SnapKit
+import Alamofire
+import ObjectMapper
 
 class RoomDetailViewController: UIViewController, UITableViewDelegate, UITableViewDataSource {
     
@@ -15,7 +16,7 @@ class RoomDetailViewController: UIViewController, UITableViewDelegate, UITableVi
     private let __cellIdentifier = "Cell"
     private let __cabinetCellIdentifier = "CabinetCell"
     private lazy var __tableView = UITableView()
-    private var __cabinets: [[CabinetModel]] = [] {
+    private var __cabinetRows: [CabinetRowModel] = [] {
         didSet {
             __tableView.reloadData()
         }
@@ -50,25 +51,25 @@ class RoomDetailViewController: UIViewController, UITableViewDelegate, UITableVi
     }
 
     func tableView(tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return (__selectedSection == nil || section != __selectedSection) ? 1 : (__cabinets[__selectedSection!].count + 1)
+        return (__selectedSection == nil || section != __selectedSection) ? 1 : (__cabinetRows[__selectedSection!].cabList.count + 1)
     }
     
     func numberOfSectionsInTableView(tableView: UITableView) -> Int {
-        return __cabinets.count
+        return __cabinetRows.count
     }
     
     func tableView(tableView: UITableView, cellForRowAtIndexPath indexPath: NSIndexPath) -> UITableViewCell {
         if indexPath.row > 0 {
             let cell = tableView.dequeueReusableCellWithIdentifier(__cabinetCellIdentifier) as! CabinetCell
-            cell.cabinet = __cabinets[indexPath.section][indexPath.row - 1]
+            cell.cabinet = __cabinetRows[indexPath.section].cabList[indexPath.row - 1]
             switch indexPath.row {
-            case let value where value == 1 && value == __cabinets[indexPath.section].count:
+            case let value where value == 1 && value == __cabinetRows[indexPath.section].cabList.count:
                 cell.topBorderView.hidden = false
                 cell.bottomBorderView.hidden = false
-            case let value where value == 1 && value != __cabinets[indexPath.section].count:
+            case let value where value == 1 && value != __cabinetRows[indexPath.section].cabList.count:
                 cell.topBorderView.hidden = false
                 cell.bottomBorderView.hidden = true
-            case let value where value == __cabinets[indexPath.section].count:
+            case let value where value == __cabinetRows[indexPath.section].cabList.count:
                 cell.topBorderView.hidden = true
                 cell.bottomBorderView.hidden = false
             default:
@@ -80,9 +81,9 @@ class RoomDetailViewController: UIViewController, UITableViewDelegate, UITableVi
         }
         else {
             let cell = tableView.dequeueReusableCellWithIdentifier(__cellIdentifier)!
-            let model = __cabinets[indexPath.section].first
-            if let row = model?.row {
-                cell.textLabel?.text = "行\(row)"
+            let model = __cabinetRows[indexPath.section]
+            if let name = model.rowName {
+                cell.textLabel?.text = name
             }
             else {
                 cell.textLabel?.text = "行错误"
@@ -103,7 +104,7 @@ class RoomDetailViewController: UIViewController, UITableViewDelegate, UITableVi
             switch __selectedSection {
             case .Some(let selected) where selected == indexPath.section:
                 var deleteIndexPaths: [NSIndexPath] = []
-                for i in 1...__cabinets[selected].count {
+                for i in 1...__cabinetRows[selected].cabList.count {
                     deleteIndexPaths.append(NSIndexPath(forRow: i, inSection: selected))
                 }
                 __selectedSection = nil
@@ -111,10 +112,10 @@ class RoomDetailViewController: UIViewController, UITableViewDelegate, UITableVi
             case .Some(let selected) where selected != indexPath.section:
                 var deleteIndexPaths: [NSIndexPath] = []
                 var insertIndexPaths: [NSIndexPath] = []
-                for i in 1...__cabinets[selected].count {
+                for i in 1...__cabinetRows[selected].cabList.count {
                     deleteIndexPaths.append(NSIndexPath(forRow: i, inSection: selected))
                 }
-                for i in 1...__cabinets[indexPath.section].count {
+                for i in 1...__cabinetRows[indexPath.section].cabList.count {
                     insertIndexPaths.append(NSIndexPath(forRow: i, inSection: indexPath.section))
                 }
                 __selectedSection = indexPath.section
@@ -125,7 +126,7 @@ class RoomDetailViewController: UIViewController, UITableViewDelegate, UITableVi
             default:
                 __selectedSection = indexPath.section
                 var insertIndexPaths: [NSIndexPath] = []
-                for i in 1...__cabinets[indexPath.section].count {
+                for i in 1...__cabinetRows[indexPath.section].cabList.count {
                     insertIndexPaths.append(NSIndexPath(forRow: i, inSection: indexPath.section))
                 }
                 __tableView.insertRowsAtIndexPaths(insertIndexPaths, withRowAnimation: .Top)
@@ -140,23 +141,29 @@ class RoomDetailViewController: UIViewController, UITableViewDelegate, UITableVi
     }
     
     private func p_fetchData() {
-        var count = 20
-        var modelMap: [Int: [CabinetModel]] = [ : ]
-        while count > 0 {
-            let row = random() % 10
-            let col = random() % 10
-            let cadId = random()
-            var rowCabinets = modelMap[row]
-            if rowCabinets == nil {
-                rowCabinets = []
-            }
-            let model = CabinetModel(cabId: cadId, row: row, col: col)
-            rowCabinets?.append(model)
-            modelMap[row] = rowCabinets
-            count -= 1
+        guard let roomID = __room.roomId, roomName = __room.name else {
+            __cabinetRows = []
+            return
         }
-        __cabinets = modelMap.map{ ($0.0, $0.1.sort{ $0.col < $1.col }) }.sort{ $0.0 < $1.0 }.map{ $0.1 }
-        __tableView.reloadData()
+        let user = User.shareInstance
+        Alamofire.request(.GET, "http://\(user.ip):\(user.port)/DataCenter2/showcabrc.action", parameters: ["cabroom": roomID,
+            "cabname": roomName]).responseJSON { [weak self] response in
+                guard let JSON = response.result.value as? [AnyObject], cab = JSON.first as? [String: AnyObject] else {
+                    self?.__cabinetRows = []
+                    return
+                }
+                guard let cabnetJSON = cab["children"] as? [String: AnyObject] else {
+                    self?.__cabinetRows = []
+                    return
+                }
+                print(cabnetJSON["list"])
+                guard let rows = Mapper<CabinetRowModel>().mapArray(cabnetJSON["list"]) else {
+                    self?.__cabinetRows = []
+                    return
+                }
+                print(rows)
+                self?.__cabinetRows = rows
+        }
     }
     
 }
